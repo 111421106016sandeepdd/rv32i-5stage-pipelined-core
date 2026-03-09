@@ -48,10 +48,10 @@ stages without waiting for writeback.
 
 Example:
 
-
+~~~text
 add x1, x2, x3
 add x4, x1, x5
-
+~~~
 
 The result from the first instruction is forwarded directly to the second instruction.
 
@@ -64,10 +64,10 @@ the pipeline inserts a stall cycle.
 
 Example:
 
-
+~~~text
 lw x5, 0(x1)
 add x6, x5, x2
-
+~~~
 
 The dependent instruction waits until the loaded value becomes available.
 
@@ -105,10 +105,7 @@ All tests pass in the regression flow.
 
 ## Project Structure
 
-
-## Project Structure
-
-```
+~~~text
 proj1_rv32i/
 │
 ├── rtl/
@@ -132,7 +129,7 @@ proj1_rv32i/
 ├── Makefile
 ├── run_demo.sh
 └── README.md
-```
+~~~
 
 ---
 
@@ -140,18 +137,19 @@ proj1_rv32i/
 
 Run the full verification suite:
 
+~~~bash
 make test
-
+~~~
 
 Run the short demo used for quick demonstrations:
 
-
+~~~bash
 ./run_demo.sh
-
+~~~
 
 Example output:
 
-
+~~~text
 ===== RV32I 5-Stage Pipeline Demo =====
 
 [1/3] ALU test
@@ -164,7 +162,7 @@ PASS
 PASS
 
 ===== Demo complete =====
-
+~~~
 
 ---
 
@@ -179,5 +177,4 @@ PASS
 
 ## Author
 
-Sandeep Gorrepati  
-
+Sandeep Gorrepati

@@ -1,10 +1,10 @@
 # RV32I 5-Stage Pipelined Processor (SystemVerilog)
 
-This project implements a simple RV32I processor using a classic 5-stage pipeline.  
+This project implements a simple RV32I processor using a classic five-stage pipeline.
 The design was written in SystemVerilog and verified using simulation with Icarus Verilog.
 
-The goal of the project was to understand how pipelined CPUs work in practice,
-including datapath design, hazard handling, and verification using directed tests.
+The goal of this project was to understand how pipelined processors work in practice,
+including datapath design, hazard handling, and basic verification using directed tests.
 
 ---
 
@@ -26,14 +26,15 @@ The program counter increments by 4 bytes for sequential instruction execution.
 
 ## Implemented Features
 
-The core supports a subset of the RV32I instruction set and includes:
+The processor supports a subset of the RV32I instruction set and includes:
 
 - 5-stage pipelined datapath
 - Register file (x0 hardwired to zero)
 - Arithmetic and logical ALU operations
 - Load and store instructions
 - JAL (jump and link)
-- Hazard handling logic
+- Data hazard forwarding
+- Load-use hazard stall logic
 - Illegal instruction detection
 
 ---
@@ -46,59 +47,13 @@ Forwarding paths allow dependent instructions to use results from later pipeline
 stages without waiting for writeback.
 
 Example:
-# RV32I 5-Stage Pipelined Processor (SystemVerilog)
 
-This project implements a simple RV32I processor using a classic 5-stage pipeline.  
-The design was written in SystemVerilog and verified using simulation with Icarus Verilog.
 
-The goal of the project was to understand how pipelined CPUs work in practice,
-including datapath design, hazard handling, and verification using directed tests.
-
----
-
-## Pipeline Stages
-
-The processor follows the standard five-stage pipeline structure.
-
-| Stage | Description |
-|------|-------------|
-| IF | Instruction Fetch |
-| ID | Instruction Decode and Register Read |
-| EX | Execute (ALU operations) |
-| MEM | Data Memory Access |
-| WB | Write Back to Register File |
-
-The program counter increments by 4 bytes for sequential instruction execution.
-
----
-
-## Implemented Features
-
-The core supports a subset of the RV32I instruction set and includes:
-
-- 5-stage pipelined datapath
-- Register file (x0 hardwired to zero)
-- Arithmetic and logical ALU operations
-- Load and store instructions
-- JAL (jump and link)
-- Hazard handling logic
-- Illegal instruction detection
-
----
-
-## Hazard Handling
-
-### Data Hazards (Forwarding)
-
-Forwarding paths allow dependent instructions to use results from later pipeline
-stages without waiting for writeback.
-
-Example:
 add x1, x2, x3
 add x4, x1, x5
 
 
-The result from the first instruction is forwarded directly to the second.
+The result from the first instruction is forwarded directly to the second instruction.
 
 ---
 
@@ -109,29 +64,19 @@ the pipeline inserts a stall cycle.
 
 Example:
 
-The result from the first instruction is forwarded directly to the second.
-
----
-
-### Load-Use Hazard
-
-If an instruction depends on a value loaded from memory,
-the pipeline inserts a stall cycle.
-
-Example:
 
 lw x5, 0(x1)
 add x6, x5, x2
 
 
-The dependent instruction waits until the load result becomes available.
+The dependent instruction waits until the loaded value becomes available.
 
 ---
 
 ### Control Hazards
 
 When a branch is taken, instructions already in the pipeline are flushed
-and execution continues from the correct program counter.
+and execution resumes from the correct program counter.
 
 ---
 
@@ -140,15 +85,15 @@ and execution continues from the correct program counter.
 The processor was verified using directed simulation tests.
 
 Each test loads a small RISC-V program into instruction memory and checks
-register or memory results.
+the resulting register or memory state.
 
-Tests include:
+Test coverage includes:
 
 - ALU operations
 - Branch taken
 - Branch not taken
-- Data forwarding
-- Load-use hazard
+- Forwarding hazards
+- Load-use hazards
 - Store forwarding
 - Memory operations (LW/SW)
 - JAL instruction
@@ -159,35 +104,31 @@ All tests pass in the regression flow.
 ---
 
 ## Project Structure
+
+
 proj1_rv32i/
-rtl/
-core_pipe5.sv
-core_single.sv
-regfile.sv
-alu.sv
-
-tb/
-testbenches and directed test programs
-
-scripts/
-simulation and automation scripts
-
-docs/
-design notes
-
-sim/
-simulator configuration
-
-Makefile
-run_demo.sh
-README.md
-
-
----
-
-## Running the Project
-
-Run the full verification suite:
+│
+├── rtl/
+│ ├── core_pipe5.sv
+│ ├── core_single.sv
+│ ├── regfile.sv
+│ └── alu.sv
+│
+├── tb/
+│ └── testbenches and directed test programs
+│
+├── scripts/
+│ └── simulation and automation scripts
+│
+├── docs/
+│ └── design notes
+│
+├── sim/
+│ └── simulator configuration
+│
+├── Makefile
+├── run_demo.sh
+└── README.md
 
 
 ---
@@ -195,6 +136,8 @@ Run the full verification suite:
 ## Running the Project
 
 Run the full verification suite:
+
+
 make test
 
 
@@ -235,4 +178,4 @@ PASS
 ## Author
 
 Sandeep Gorrepati  
-ECE Graduate, Digital Design / VLSI
+

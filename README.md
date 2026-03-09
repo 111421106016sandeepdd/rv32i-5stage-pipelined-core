@@ -106,37 +106,39 @@ All tests pass in the regression flow.
 ## Project Structure
 
 
+## Project Structure
+
+```
 proj1_rv32i/
 │
 ├── rtl/
-│ ├── core_pipe5.sv
-│ ├── core_single.sv
-│ ├── regfile.sv
-│ └── alu.sv
+│   ├── core_pipe5.sv
+│   ├── core_single.sv
+│   ├── regfile.sv
+│   └── alu.sv
 │
 ├── tb/
-│ └── testbenches and directed test programs
+│   └── testbenches and directed test programs
 │
 ├── scripts/
-│ └── simulation and automation scripts
+│   └── simulation and automation scripts
 │
 ├── docs/
-│ └── design notes
+│   └── design notes
 │
 ├── sim/
-│ └── simulator configuration
+│   └── simulator configuration
 │
 ├── Makefile
 ├── run_demo.sh
 └── README.md
-
+```
 
 ---
 
 ## Running the Project
 
 Run the full verification suite:
-
 
 make test
 

@@ -7,6 +7,14 @@ module tb_core_pipe5;
   wire illegal;
   wire [31:0] x10;
 
+  integer cycle_count;
+
+  // Default expected value if not passed from compiler
+`ifndef EXPECT_X10
+  `define EXPECT_X10 0
+`endif
+
+  // DUT
   core_pipe5 #(
     .IMEM_WORDS(64),
     .IMEM_HEX("build/padded.hex")
@@ -18,24 +26,48 @@ module tb_core_pipe5;
     .dbg_x10(x10)
   );
 
+  // Clock
   initial clk = 0;
   always #5 clk = ~clk;
 
+  // Cycle counter
+  always @(posedge clk) begin
+    if (rst)
+      cycle_count <= 0;
+    else
+      cycle_count <= cycle_count + 1;
+  end
+
+  // Main simulation
   initial begin
-    // ✅ ADD THESE TWO LINES HERE
-    $dumpfile("build/wave_pipe_alu.vcd");
+    $dumpfile("build/core_pipe5.vcd");
     $dumpvars(0, tb_core_pipe5);
 
-    $display("SIM START (PIPE ALU)");
-    rst = 1; #20 rst = 0;
+    $display("=== SIM START ===");
+    $display("EXPECTED x10 = %0d", `EXPECT_X10);
 
-    // Let pipeline fill/drain
-    #300;
+    cycle_count = 0;
+    rst = 1;
+    #20;
+    rst = 0;
 
-    if (illegal) $display("FAIL: illegal_insn=1");
-    else if (x10 == 32'd12) $display("PASS: x10=%0d", x10);
-    else $display("FAIL: x10=%0d expected 12", x10);
+    // Let pipeline execute
+    #400;
+
+    if (illegal) begin
+      $display("FAIL: illegal instruction detected");
+    end
+    else if (x10 !== `EXPECT_X10) begin
+      $display("FAIL: x10 = %0d, expected = %0d", x10, `EXPECT_X10);
+    end
+    else begin
+      $display("PASS: x10 = %0d", x10);
+    end
+
+    $display("Cycle count = %0d", cycle_count);
+    $display("Final PC    = 0x%08h", pc);
 
     $finish;
   end
+
 endmodule

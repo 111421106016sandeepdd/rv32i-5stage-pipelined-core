@@ -1,5 +1,4 @@
-`timescale 1ns/1ps
-
+// rtl/alu.sv (Icarus-friendly)
 module alu #(
   parameter XLEN = 32
 )(
@@ -10,6 +9,7 @@ module alu #(
   output reg             zero
 );
 
+  // op encoding must match core_single.sv
   localparam [3:0]
     ALU_ADD  = 4'h0,
     ALU_SUB  = 4'h1,

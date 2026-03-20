@@ -90,17 +90,21 @@ module core_pipe5 #(
   reg        idex_alu_imm;
   reg [3:0]  idex_alu_op;
 
-  localparam [3:0]
-    ALU_ADD  = 4'h0,
-    ALU_SUB  = 4'h1,
-    ALU_AND  = 4'h2,
-    ALU_OR   = 4'h3,
-    ALU_XOR  = 4'h4,
-    ALU_SLL  = 4'h5,
-    ALU_SRL  = 4'h6,
-    ALU_SRA  = 4'h7,
-    ALU_SLT  = 4'h8,
-    ALU_SLTU = 4'h9;
+  localparam ALU_ADD = 4'd0;
+  localparam ALU_SUB = 4'd1;
+
+  function [31:0] alu_fn;
+    input [3:0]  op;
+    input [31:0] a;
+    input [31:0] b;
+    begin
+      case (op)
+        ALU_ADD: alu_fn = a + b;
+        ALU_SUB: alu_fn = a - b;
+        default: alu_fn = 0;
+      endcase
+    end
+  endfunction
 
   // ---------------- EX/MEM ----------------
   reg [31:0] exmem_alu;
@@ -133,38 +137,39 @@ module core_pipe5 #(
   );
 
   // ---------------- Forwarding ----------------
-  wire [31:0] ex_rs1_fwd;
-  wire [31:0] ex_rs2_fwd;
+  reg [31:0] ex_rs1_fwd;
+  reg [31:0] ex_rs2_fwd;
 
-  forwarding_unit u_forwarding (
-    .idex_rs1_val(idex_rs1_val),
-    .idex_rs2_val(idex_rs2_val),
-    .idex_rs1(idex_rs1),
-    .idex_rs2(idex_rs2),
-    .exmem_regwrite(exmem_regwrite),
-    .exmem_is_load(exmem_is_load),
-    .exmem_rd(exmem_rd),
-    .exmem_alu(exmem_alu),
-    .memwb_we(memwb_we),
-    .memwb_rd(memwb_rd),
-    .memwb_wdata(memwb_wdata),
-    .ex_rs1_fwd(ex_rs1_fwd),
-    .ex_rs2_fwd(ex_rs2_fwd)
-  );
+  always @(*) begin
+    ex_rs1_fwd = idex_rs1_val;
+    ex_rs2_fwd = idex_rs2_val;
 
-  // ---------------- Execute / ALU ----------------
+    // Newest result must win:
+    // EX/MEM has priority over MEM/WB.
+    // Also, do NOT forward exmem_alu for loads, because for loads
+    // exmem_alu is only the address, not the loaded data.
+
+    // rs1 forwarding
+    if (exmem_regwrite && !exmem_is_load && (exmem_rd != 0) && (exmem_rd == idex_rs1)) begin
+      ex_rs1_fwd = exmem_alu;
+    end
+    else if (memwb_we && (memwb_rd != 0) && (memwb_rd == idex_rs1)) begin
+      ex_rs1_fwd = memwb_wdata;
+    end
+
+    // rs2 forwarding
+    if (exmem_regwrite && !exmem_is_load && (exmem_rd != 0) && (exmem_rd == idex_rs2)) begin
+      ex_rs2_fwd = exmem_alu;
+    end
+    else if (memwb_we && (memwb_rd != 0) && (memwb_rd == idex_rs2)) begin
+      ex_rs2_fwd = memwb_wdata;
+    end
+  end
+
+  // ---------------- Execute ----------------
   wire [31:0] ex_a   = ex_rs1_fwd;
   wire [31:0] ex_b   = idex_alu_imm ? idex_imm : ex_rs2_fwd;
-  wire [31:0] ex_alu;
-  wire        ex_zero_unused;
-
-  alu #(.XLEN(XLEN)) u_alu (
-    .a(ex_a),
-    .b(ex_b),
-    .op(idex_alu_op),
-    .y(ex_alu),
-    .zero(ex_zero_unused)
-  );
+  wire [31:0] ex_alu = alu_fn(idex_alu_op, ex_a, ex_b);
 
   wire ex_beq         = (ex_rs1_fwd == ex_rs2_fwd);
   wire ex_take_branch = idex_is_branch && ex_beq;
@@ -258,6 +263,7 @@ module core_pipe5 #(
       exmem_wb_data    <= idex_is_jal ? ex_pc_plus4 : ex_alu;
 
       // ID stage -> ID/EX
+      // Bubble ID/EX on both load-use hazard and control redirect.
       if (load_use_hazard || flush_ifid) begin
         idex_pc        <= 0;
         idex_rs1_val   <= 0;
@@ -294,49 +300,20 @@ module core_pipe5 #(
         idex_imm       <= imm_i_d;
 
         case (op_d)
-          // R-type
           7'b0110011: begin
             idex_regwrite <= 1;
-            case (f3_d)
-              3'b000: begin
-                if (f7_d == 7'b0100000) idex_alu_op <= ALU_SUB;
-                else                     idex_alu_op <= ALU_ADD;
-              end
-              3'b111: idex_alu_op <= ALU_AND;
-              3'b110: idex_alu_op <= ALU_OR;
-              3'b100: idex_alu_op <= ALU_XOR;
-              3'b001: idex_alu_op <= ALU_SLL;
-              3'b101: begin
-                if (f7_d == 7'b0100000) idex_alu_op <= ALU_SRA;
-                else                     idex_alu_op <= ALU_SRL;
-              end
-              3'b010: idex_alu_op <= ALU_SLT;
-              3'b011: idex_alu_op <= ALU_SLTU;
-              default: illegal_insn <= 1;
-            endcase
+            if ((f3_d == 3'b000) && (f7_d == 7'b0100000))
+              idex_alu_op <= ALU_SUB;
+            else
+              idex_alu_op <= ALU_ADD;
           end
 
-          // I-type ALU
           7'b0010011: begin
             idex_regwrite <= 1;
             idex_alu_imm  <= 1;
-            case (f3_d)
-              3'b000: idex_alu_op <= ALU_ADD; // ADDI
-              3'b111: idex_alu_op <= ALU_AND; // ANDI
-              3'b110: idex_alu_op <= ALU_OR;  // ORI
-              3'b100: idex_alu_op <= ALU_XOR; // XORI
-              3'b010: idex_alu_op <= ALU_SLT; // SLTI
-              3'b011: idex_alu_op <= ALU_SLTU;// SLTIU
-              3'b001: idex_alu_op <= ALU_SLL; // SLLI
-              3'b101: begin
-                if (f7_d == 7'b0100000) idex_alu_op <= ALU_SRA; // SRAI
-                else                     idex_alu_op <= ALU_SRL; // SRLI
-              end
-              default: illegal_insn <= 1;
-            endcase
+            idex_alu_op   <= ALU_ADD;
           end
 
-          // Load
           7'b0000011: begin
             idex_regwrite <= 1;
             idex_is_load  <= 1;
@@ -344,7 +321,6 @@ module core_pipe5 #(
             idex_alu_op   <= ALU_ADD;
           end
 
-          // Store
           7'b0100011: begin
             idex_is_store <= 1;
             idex_alu_imm  <= 1;
@@ -352,22 +328,20 @@ module core_pipe5 #(
             idex_imm      <= imm_s_d;
           end
 
-          // Branch
           7'b1100011: begin
             idex_is_branch <= 1;
             idex_imm       <= imm_b_d;
             idex_alu_op    <= ALU_SUB;
           end
 
-          // JAL
           7'b1101111: begin
             idex_regwrite <= 1;
             idex_is_jal   <= 1;
             idex_imm      <= imm_j_d;
           end
 
-          // Bubble / empty
           7'b0000000: begin
+            // Treat empty / bubble as harmless
           end
 
           default: begin

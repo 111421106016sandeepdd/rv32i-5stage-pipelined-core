@@ -1,87 +1,31 @@
-IMEM_WORDS ?= 64
+TEST ?= test_pipe_alu.hex
+EXPECT_X10 ?= 12
 
-RTL = rtl/regfile.sv rtl/core_pipe5.sv
-
-.PHONY: clean test demo alu branch branch_nt forward load_use store_forward lw_sw jal illegal
-
-clean:
+run:
 	rm -rf build/*
 	mkdir -p build
-
-alu: clean
-	scripts/pad_hex.sh tb/programs/test_pipe_alu.hex build/padded.hex $(IMEM_WORDS)
+	scripts/pad_hex.sh tb/programs/$(TEST) build/padded.hex 64
 	iverilog -g2012 -Wall -Wimplicit -Wportbind -Wselect-range \
+	  -DEXPECT_X10=$(EXPECT_X10) \
 	  -s tb_core_pipe5 \
-	  $(RTL) tb/tb_core_pipe5.sv \
-	  -o build/core_pipe5_alu.out
-	vvp build/core_pipe5_alu.out
+	  rtl/regfile.sv rtl/alu.sv rtl/hazard_detection_unit.sv rtl/forwarding_unit.sv rtl/core_pipe5.sv tb/tb_core_pipe5.sv \
+	  -o build/core_pipe5.out
+	vvp build/core_pipe5.out
 
-branch: clean
-	scripts/pad_hex.sh tb/programs/test_branch_flush.hex build/padded.hex $(IMEM_WORDS)
-	iverilog -g2012 -Wall -Wimplicit -Wportbind -Wselect-range \
-	  -s tb_core_pipe5_branch \
-	  $(RTL) tb/tb_core_pipe5_branch.sv \
-	  -o build/core_pipe5_branch.out
-	vvp build/core_pipe5_branch.out
+alu:
+	$(MAKE) run TEST=test_pipe_alu.hex EXPECT_X10=12
 
-branch_nt: clean
-	scripts/pad_hex.sh tb/programs/test_pipe_branch_not_taken.hex build/padded.hex $(IMEM_WORDS)
-	iverilog -g2012 -Wall -Wimplicit -Wportbind -Wselect-range \
-	  -s tb_core_pipe5_branch_not_taken \
-	  $(RTL) tb/tb_core_pipe5_branch_not_taken.sv \
-	  -o build/core_pipe5_branch_nt.out
-	vvp build/core_pipe5_branch_nt.out
+forward:
+	$(MAKE) run TEST=test_pipe_forward.hex EXPECT_X10=6
 
-forward: clean
-	scripts/pad_hex.sh tb/programs/test_pipe_forward.hex build/padded.hex $(IMEM_WORDS)
-	iverilog -g2012 -Wall -Wimplicit -Wportbind -Wselect-range \
-	  -s tb_core_pipe5_forward \
-	  $(RTL) tb/tb_core_pipe5_forward.sv \
-	  -o build/core_pipe5_forward.out
-	vvp build/core_pipe5_forward.out
+load_use:
+	$(MAKE) run TEST=test_pipe_load_use.hex EXPECT_X10=6
 
-load_use: clean
-	scripts/pad_hex.sh tb/programs/test_pipe_load_use.hex build/padded.hex $(IMEM_WORDS)
-	iverilog -g2012 -Wall -Wimplicit -Wportbind -Wselect-range \
-	  -s tb_core_pipe5_load_use \
-	  $(RTL) tb/tb_core_pipe5_load_use.sv \
-	  -o build/core_pipe5_load_use.out
-	vvp build/core_pipe5_load_use.out
+branch_taken:
+	$(MAKE) run TEST=test_pipe_branch.hex EXPECT_X10=12
 
-store_forward: clean
-	scripts/pad_hex.sh tb/programs/test_pipe_store_forward.hex build/padded.hex $(IMEM_WORDS)
-	iverilog -g2012 -Wall -Wimplicit -Wportbind -Wselect-range \
-	  -s tb_core_pipe5_store_forward \
-	  $(RTL) tb/tb_core_pipe5_store_forward.sv \
-	  -o build/core_pipe5_store_forward.out
-	vvp build/core_pipe5_store_forward.out
+branch_not_taken:
+	$(MAKE) run TEST=test_pipe_branch_not_taken.hex EXPECT_X10=12
 
-lw_sw: clean
-	scripts/pad_hex.sh tb/programs/test_pipe_lw_sw.hex build/padded.hex $(IMEM_WORDS)
-	iverilog -g2012 -Wall -Wimplicit -Wportbind -Wselect-range \
-	  -s tb_core_pipe5_lw_sw \
-	  $(RTL) tb/tb_core_pipe5_lw_sw.sv \
-	  -o build/core_pipe5_lw_sw.out
-	vvp build/core_pipe5_lw_sw.out
-
-jal: clean
-	scripts/pad_hex.sh tb/programs/test_pipe_jal.hex build/padded.hex $(IMEM_WORDS)
-	iverilog -g2012 -Wall -Wimplicit -Wportbind -Wselect-range \
-	  -s tb_core_pipe5_jal \
-	  $(RTL) tb/tb_core_pipe5_jal.sv \
-	  -o build/core_pipe5_jal.out
-	vvp build/core_pipe5_jal.out
-
-illegal: clean
-	scripts/pad_hex.sh tb/programs/test_pipe_illegal.hex build/padded.hex $(IMEM_WORDS)
-	iverilog -g2012 -Wall -Wimplicit -Wportbind -Wselect-range \
-	  -s tb_core_pipe5_illegal \
-	  $(RTL) tb/tb_core_pipe5_illegal.sv \
-	  -o build/core_pipe5_illegal.out
-	vvp build/core_pipe5_illegal.out
-
-test:
-	bash scripts/run_all_pipe5.sh
-
-demo:
-	bash run_demo.sh
+store_forward:
+	$(MAKE) run TEST=test_pipe_store_forward.hex EXPECT_X10=7

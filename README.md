@@ -163,7 +163,13 @@ PASS
 
 ===== Demo complete =====
 ~~~
+## Waveform Proof
 
+### Forwarding Behavior
+![Forwarding](docs/forwarding_waveform.png)
+
+### Hazard Detection
+![Hazard](docs/hazard_waveform.png)
 ---
 
 ## Tools Used
